@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: todo_db
+    restart: always
+    environment:
+      POSTGRES_USER: Admin123
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - todo:/var/lib/postgresql/data
+
+volumes:
+  todo:
