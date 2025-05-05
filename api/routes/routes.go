@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"go-migrate-example/api/handlers"
+	"todo-backend/api/handlers"
 
 	"time"
 

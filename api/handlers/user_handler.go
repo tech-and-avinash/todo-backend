@@ -3,12 +3,12 @@ package handlers
 import (
 	"log"
 	"net/http"
-	"strconv"
 
-	"go-migrate-example/models"
-	"go-migrate-example/repositories"
+	"todo-backend/models"
+	"todo-backend/repositories"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -31,7 +31,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// If not using SSO (no ClerkID), password must be provided
 	if req.ClerkID == "" && req.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required for manual sign-up"})
 		return
@@ -49,6 +48,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	user := &models.User{
+		ID:        uuid.New(),
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
@@ -56,8 +56,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		ImageURL:  req.ImageUrl,
 		Password:  hashedPassword,
 	}
-
-	// Optionally check for existing user as discussed earlier
 
 	if err := h.repo.Create(user); err != nil {
 		log.Println("Database create error:", err)
@@ -69,13 +67,14 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 }
 
 func (h *UserHandler) GetUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	user, err := h.repo.GetByID(uint(id))
+	user, err := h.repo.GetByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -85,7 +84,8 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -97,7 +97,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user.ID = uint(id)
+	user.ID = id
 	if err := h.repo.Update(&user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -107,13 +107,14 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	if err := h.repo.Delete(uint(id)); err != nil {
+	if err := h.repo.Delete(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

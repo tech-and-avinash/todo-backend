@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"go-migrate-example/models"
+	"todo-backend/models"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,10 +20,10 @@ func (r *UserRepository) Create(user *models.User) error {
 	return r.db.Create(user).Error
 }
 
-// Get user by ID
-func (r *UserRepository) GetByID(id uint) (*models.User, error) {
+// Get user by ID (UUID)
+func (r *UserRepository) GetByID(id uuid.UUID) (*models.User, error) {
 	var user models.User
-	err := r.db.First(&user, id).Error
+	err := r.db.First(&user, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +45,9 @@ func (r *UserRepository) Update(user *models.User) error {
 	return r.db.Save(user).Error
 }
 
-// Delete a user (soft delete)
-func (r *UserRepository) Delete(id uint) error {
-	return r.db.Delete(&models.User{}, id).Error
+// Delete a user (soft delete) by UUID
+func (r *UserRepository) Delete(id uuid.UUID) error {
+	return r.db.Delete(&models.User{}, "id = ?", id).Error
 }
 
 // List all users

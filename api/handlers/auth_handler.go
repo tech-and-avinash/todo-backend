@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 
-	"go-migrate-example/models"
+	"todo-backend/models"
 )
 
 type AuthHandler struct {
@@ -75,29 +74,4 @@ func generateJWTToken(user models.User, secretKey []byte) (string, error) {
 
 	// Sign and get the complete encoded token as a string
 	return token.SignedString(secretKey)
-}
-
-func extractUserIDFromToken(c *gin.Context) (uint, error) {
-	tokenString := c.GetHeader("Authorization")
-
-	// Strip "Bearer " prefix if present
-	if strings.HasPrefix(tokenString, "Bearer ") {
-		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-	}
-
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_SECRET_KEY")), nil
-	})
-	if err != nil {
-		return 0, err
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return 0, err
-	}
-	userID, ok := claims["user_id"].(float64)
-	if !ok {
-		return 0, err
-	}
-	return uint(userID), nil
 }

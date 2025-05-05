@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type CreateUserRequest struct {
 	FirstName string `json:"firstName" binding:"required"`
@@ -19,7 +23,7 @@ type CreateNoteRequest struct {
 
 // response model
 type NoteResponse struct {
-	ID          uint      `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

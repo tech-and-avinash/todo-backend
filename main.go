@@ -7,8 +7,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"go-migrate-example/api/routes"
-	"go-migrate-example/models"
+	"todo-backend/api/routes"
+	"todo-backend/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -31,22 +31,23 @@ func main() {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		host, user, password, dbname, port)
 
-	// Print the DSN
-	fmt.Println(dsn)
+	// Print the DSN (optional - for debugging)
+	fmt.Println("Connecting to DB with DSN:", dsn)
 
 	// Connect to the database using GORM
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
+
 	// Run migrations
 	if err := db.AutoMigrate(&models.User{}, &models.Note{}); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
+	}
 
-		// Setup and run the server
-		r := routes.SetupRoutes(db)
-		if err := r.Run(":8080"); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
-		}
+	// Setup and run the server
+	r := routes.SetupRoutes(db)
+	if err := r.Run(":8080"); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
