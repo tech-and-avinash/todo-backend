@@ -3,10 +3,12 @@ package models
 import "time"
 
 type CreateUserRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
-	Age      int    `json:"age"`
+	FirstName string `json:"firstName" binding:"required"`
+	LastName  string `json:"lastName" binding:"required"`
+	ClerkID   string `json:"clerkId"`
+	Email     string `json:"email" binding:"required,email"`
+	ImageUrl  string `json:"image_url"`
+	Password  string `json:"password"`
 }
 
 // request model

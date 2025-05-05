@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -25,24 +26,41 @@ func NewUserHandler(db *gorm.DB) *UserHandler {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req models.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("JSON bind error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+	// If not using SSO (no ClerkID), password must be provided
+	if req.ClerkID == "" && req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required for manual sign-up"})
 		return
 	}
 
-	user := &models.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		Age:      req.Age,
+	var hashedPassword string
+	if req.Password != "" {
+		pw, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			log.Println("Password hashing error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		hashedPassword = string(pw)
 	}
 
+	user := &models.User{
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Email:     req.Email,
+		ClerkID:   req.ClerkID,
+		ImageURL:  req.ImageUrl,
+		Password:  hashedPassword,
+	}
+
+	// Optionally check for existing user as discussed earlier
+
 	if err := h.repo.Create(user); err != nil {
+		log.Println("Database create error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -9,10 +9,12 @@ import (
 // User model
 type User struct {
 	ID        uint   `gorm:"primaryKey"`
-	Name      string `gorm:"size:100;not null"`
-	Email     string `gorm:"unique;not null"`
-	Password  string `gorm:"size:255;not null"`
-	Age       int    `gorm:"column:age"`
+	ClerkID   string `json:"clerkId" gorm:"uniqueIndex"`
+	Email     string `json:"email"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	ImageURL  string `json:"imageUrl"`
+	Password  string `gorm:"size:255" json:"password"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
