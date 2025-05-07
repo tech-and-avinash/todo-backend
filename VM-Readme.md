@@ -2,19 +2,23 @@
 
 This guide walks you through setting up the backend and frontend for the `todo` application, configuring Nginx, securing the domains with SSL (Let's Encrypt), and setting up a systemd service for the API.
 
+### Permission after copying binary
+```bash
+chmod +x todo-backend
+```
 ---
 
 ## 1. Backend API Setup (`api.todo.nomadule.com`)
 
 ### Step 1: Create Nginx Site Config for API
 ```bash
-sudo nano /etc/nginx/sites-available/api.todo.nomadule.com
+sudo nano /etc/nginx/sites-available/api.nomadule.com
 ```
 *(Create the appropriate server block for the backend)*
 
 ### Step 2: Enable the Site
 ```bash
-sudo ln -s /etc/nginx/sites-available/api.todo.nomadule.com /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/api.nomadule.com /etc/nginx/sites-enabled/
 ```
 
 ### Step 3: Test and Reload Nginx
@@ -27,7 +31,7 @@ sudo systemctl reload nginx
 ```bash
 sudo apt update
 sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d api.todo.nomadule.com
+sudo certbot --nginx -d api.nomadule.com
 ```
 Example nginx config file
 ```nginx
@@ -85,11 +89,11 @@ sudo nano /etc/systemd/system/api-todo.service
 Example service file:
 ```ini
 [Unit]
-Description=API Todo Service
+Description=API Nomadule Service
 After=network.target
 
 [Service]
-ExecStart=/home/nomadule/app/todo/go-migrate-example
+ExecStart=/home/nomadule/app/todo/todo-backend
 WorkingDirectory=/home/nomadule/app/todo
 Restart=always
 User=nomadule
@@ -103,7 +107,7 @@ WantedBy=multi-user.target
 ### Step 2: Reload systemd and Restart Service
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart api-todo.service
+sudo systemctl restart api-nomadule.service
 ```
 
 ---
@@ -112,7 +116,7 @@ sudo systemctl restart api-todo.service
 
 - Test API:
 ```bash
-curl --location 'https://api.todo.nomadule.com/users'
+curl --location 'https://api.nomadule.com/users'
 ```
 - Test Local API:
 ```bash

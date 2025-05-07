@@ -7,9 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// User model
 type User struct {
-	ID        uuid.UUID `gorm:"primaryKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 	ClerkID   string    `json:"clerkId" gorm:"uniqueIndex"`
 	Email     string    `json:"email"`
 	FirstName string    `json:"firstName"`
@@ -21,20 +20,13 @@ type User struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-// Todo model
 type Note struct {
-	ID          uuid.UUID      `gorm:"primaryKey;column:id" json:"id"`
-	Title       string         `gorm:"size:255;column:title" json:"title"`
-	Description string         `gorm:"type:text;column:description" json:"description"`
-	CreatedBy   uuid.UUID      `gorm:"not null;column:created_by" json:"created_by"`
-	CreatedAt   time.Time      `gorm:"default:CURRENT_TIMESTAMP;column:created_at" json:"created_at"`
-	UpdatedBy   uuid.UUID      `gorm:"not null;column:updated_by" json:"updated_by"`
-	UpdatedAt   time.Time      `gorm:"default:CURRENT_TIMESTAMP;column:updated_at" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index;column:deleted_at" json:"deleted_at"`
-}
-
-// MigrationVersion tracks the applied migrations
-type MigrationVersion struct {
-	Version   string    `gorm:"primaryKey"`
-	AppliedAt time.Time `gorm:"not null"`
+	ID          uuid.UUID      `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	Title       string         `gorm:"size:255" json:"title"`
+	Description string         `gorm:"type:text" json:"description"`
+	CreatedBy   uuid.UUID      `gorm:"not null" json:"created_by"`
+	CreatedAt   time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedBy   uuid.UUID      `gorm:"not null" json:"updated_by"`
+	UpdatedAt   time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }

@@ -1,17 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 
 	"todo-backend/api/routes"
+	"todo-backend/config"
 	"todo-backend/models"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -20,29 +17,14 @@ func main() {
 		log.Println("No .env file found, using default or system environment variables")
 	}
 
-	// Database connection parameters from environment variables
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-
-	// Construct DSN with fallback values
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		host, user, password, dbname, port)
-
-	// Print the DSN (optional - for debugging)
-	fmt.Println("Connecting to DB with DSN:", dsn)
-
-	// Connect to the database using GORM
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Initialize database
+	db, err := config.InitDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Run migrations
-	if err := db.AutoMigrate(&models.User{}, &models.Note{}); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+	if err := AutoMigrate(db); err != nil {
+		log.Printf("⚠️ Migration warning: %v", err)
 	}
 
 	// Setup and run the server
@@ -50,4 +32,18 @@ func main() {
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func AutoMigrate(db *gorm.DB) error {
+	for _, model := range []interface{}{
+		&models.User{},
+		&models.Note{},
+	} {
+		if err := db.Migrator().AutoMigrate(model); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
