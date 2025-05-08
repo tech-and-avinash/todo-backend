@@ -55,11 +55,6 @@ func InitDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v\nConnection string: %s", err, dsn)
 	}
-	// Enable uuid-ossp extension
-	err = db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`).Error
-	if err != nil {
-		log.Printf("⚠️ Failed to enable uuid-ossp extension: %v", err)
-	}
 
 	return db, nil
 }

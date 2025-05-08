@@ -4,11 +4,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type User struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	ClerkID   string    `json:"clerkId" gorm:"uniqueIndex"`
 	Email     string    `json:"email"`
 	FirstName string    `json:"firstName"`
@@ -17,11 +16,10 @@ type User struct {
 	Password  string    `gorm:"size:255" json:"password"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 type Note struct {
-	ID             uuid.UUID       `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ID             uuid.UUID       `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	Title          string          `gorm:"size:255" json:"title"`
 	Description    string          `gorm:"type:text" json:"description"`
 	IsPinned       bool            `json:"isPinned"`
@@ -33,11 +31,10 @@ type Note struct {
 	CreatedAt      time.Time       `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedBy      string          `gorm:"not null" json:"updated_by"`
 	UpdatedAt      time.Time       `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
-	DeletedAt      gorm.DeletedAt  `gorm:"index" json:"deleted_at"`
 }
 
 type ChecklistItem struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	NoteID    uuid.UUID `gorm:"type:uuid;not null;index"`
 	Note      Note      `gorm:"foreignKey:NoteID;references:ID"`
 	Text      string    `json:"text"`
@@ -47,7 +44,7 @@ type ChecklistItem struct {
 }
 
 type Reminder struct {
-	ID     uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ID     uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	NoteID uuid.UUID `gorm:"type:uuid;not null;index"`
 	Note   Note      `gorm:"foreignKey:NoteID;references:ID"`
 	Time   time.Time `json:"time"`

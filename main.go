@@ -23,8 +23,15 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	if err := AutoMigrate(db); err != nil {
-		log.Printf("⚠️ Migration warning: %v", err)
+	// if err := AutoMigrate(db); err != nil {
+	// 	log.Printf("⚠️ Migration warning: %v", err)
+	// }
+
+	// Run database migrations...
+	err = Migrate(db)
+	if err != nil {
+		log.Fatalf("could not migrate database: %v", err)
+		return
 	}
 
 	// Setup and run the server
@@ -34,19 +41,14 @@ func main() {
 	}
 }
 
-func AutoMigrate(db *gorm.DB) error {
-	for _, model := range []interface{}{
-		&models.User{},
-		&models.Note{},
-		&models.ChecklistItem{},
-		&models.Reminder{},
-	} {
-		log.Printf("Migrating: %T", model)
-		if err := db.Migrator().AutoMigrate(model); err != nil {
-			log.Printf("⚠️ Failed to migrate %T: %v", model, err)
-			return err
-		}
+//	func AutoMigrate(db *gorm.DB) error {
+//		modelsToMigrate := []interface{}{
+func Migrate(DB *gorm.DB) error {
+	err := DB.AutoMigrate(&models.User{}, &models.Note{}, &models.ChecklistItem{}, &models.Reminder{})
+	if err != nil {
+		log.Fatalf("could not migrate database: %v", err)
 	}
-	log.Println("✅ All migrations attempted.")
+
+	log.Println("✅ All migrations completed successfully.")
 	return nil
 }

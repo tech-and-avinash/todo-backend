@@ -128,20 +128,22 @@ func (h *NoteHandler) CreateNote(c *gin.Context) {
 func (h *NoteHandler) GetAllNotes(c *gin.Context) {
 	user, err := extractUserFromHeader(c)
 	if err != nil {
+		log.Printf("Auth error: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
+	log.Printf("Fetching notes for user ID: %s", user.ID)
+
 	notes, err := h.repo.GetAllByUser(user.ID)
 	if err != nil {
-		log.Printf("Failed to fetch notes: %v", err)
+		log.Printf("Failed to fetch notes for user %s: %v", user.ID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch notes"})
 		return
 	}
 
 	var response []models.NoteResponse
 	for _, n := range notes {
-
 		items, _ := h.repo.GetChecklistItemsByNoteID(n.ID)
 		var checklist []models.ChecklistItemResponse
 		for _, item := range items {
@@ -179,12 +181,10 @@ func (h *NoteHandler) GetAllNotes(c *gin.Context) {
 		})
 	}
 
-	result := models.NoteListResponse{
-		Notes: response,
-		Total: len(response),
-	}
-
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, gin.H{
+		"Notes": response,
+		"Total": len(response),
+	})
 }
 
 func (h *NoteHandler) GetNoteByID(c *gin.Context) {

@@ -136,3 +136,7 @@ sudo systemctl reload nginx
 # Done! 🚀
 Now your API and frontend are served with HTTPS, and the API runs as a service.
 
+journalctl -u api-nomadule.service -n 50 --no-pager
+chmod +x /home/nomadule/app/todo/todo-backend
+nomadule@vm-nomadule:/$ sudo systemctl restart api-nomadule.service
+nomadule@vm-nomadule:/$ sudo systemctl status api-nomadule.service
