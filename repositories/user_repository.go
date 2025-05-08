@@ -30,6 +30,19 @@ func (r *UserRepository) GetByID(id uuid.UUID) (*models.User, error) {
 	return &user, nil
 }
 
+// Get user by ClerkID
+func (r *UserRepository) FindByClerkID(clerkID string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("clerk_id = ?", clerkID).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 // Get user by email
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	var user models.User

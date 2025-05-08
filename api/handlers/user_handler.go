@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -33,6 +34,18 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	if req.ClerkID == "" && req.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required for manual sign-up"})
+		return
+	}
+
+	// Check if user already exists
+	existingUser, err := h.repo.FindByClerkID(req.ClerkID)
+	if err != nil && err != sql.ErrNoRows {
+		log.Println("Error checking existing user:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user existence"})
+		return
+	}
+	if existingUser != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
 		return
 	}
 

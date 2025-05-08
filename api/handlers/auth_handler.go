@@ -1,77 +1,74 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"os"
-	"time"
+	"strings"
 
-	"golang.org/x/crypto/bcrypt"
-
+	"github.com/clerkinc/clerk-sdk-go/clerk"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/gorm"
-
-	"todo-backend/models"
+	"github.com/joho/godotenv"
 )
 
-type AuthHandler struct {
-	db *gorm.DB
-}
+var clerkClient clerk.Client
 
-func NewAuthHandler(db *gorm.DB) *AuthHandler {
-	return &AuthHandler{
-		db: db,
-	}
-}
-
-func (h *AuthHandler) Login(c *gin.Context) {
-	var loginRequest models.LoginRequest
-	var user models.User
-
-	if err := c.ShouldBindJSON(&loginRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
-		return
-	}
-
-	// Find user by email
-	result := h.db.Where("email = ?", loginRequest.Email).First(&user)
-	if result.Error != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Check password
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+func init() {
+	err := godotenv.Load()
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
-		return
+		log.Println("No .env file found, using system environment variables")
 	}
 
-	// Generate JWT token
-	secretKey := []byte(os.Getenv("JWT_SECRET_KEY"))
-	token, err := generateJWTToken(user, secretKey)
+	secret := os.Getenv("CLERK_SECRET_KEY")
+	if secret == "" {
+		log.Fatal("CLERK_SECRET_KEY is not set in the environment")
+	}
+
+	clerkClient, err = clerk.NewClient(secret)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
+		log.Fatalf("Failed to initialize Clerk client: %v", err)
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"token":   token,
-	})
 }
 
-func generateJWTToken(user models.User, secretKey []byte) (string, error) {
-	// Create token claims
-	claims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+func extractUserFromHeader(c *gin.Context) (*clerk.User, error) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
+		return nil, errMissingToken()
 	}
 
-	// Create token with claims
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
+		return nil, errInvalidToken()
+	}
 
-	// Sign and get the complete encoded token as a string
-	return token.SignedString(secretKey)
+	token := parts[1]
+	sessionClaims, err := clerkClient.VerifyToken(token)
+	if err != nil {
+		log.Printf("Token verification failed: %v", err)
+		return nil, err
+	}
+
+	user, err := clerkClient.Users().Read(sessionClaims.Subject)
+	if err != nil {
+		log.Printf("Failed to fetch user: %v", err)
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func errMissingToken() error {
+	return &gin.Error{
+		Err:  http.ErrNoCookie,
+		Type: gin.ErrorTypePrivate,
+	}
+}
+
+func errInvalidToken() error {
+	return &gin.Error{
+		Err:  http.ErrNotSupported,
+		Type: gin.ErrorTypePrivate,
+	}
 }

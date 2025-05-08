@@ -16,7 +16,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 
 	// CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "https://api.nomadule.com"},
+		AllowOrigins:     []string{"http://localhost:3000", "https://todo-nomadule.netlify.app"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -46,11 +46,11 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 		noteGroup.DELETE("/:id", noteHandler.DeleteNote)
 	}
 
-	// Auth routes
-	authHandler := handlers.NewAuthHandler(db)
-	authGroup := r.Group("/auth")
-	{
-		authGroup.POST("/login", authHandler.Login)
-	}
+	// // Auth routes
+	// authHandler := handlers.NewAuthHandler(db)
+	// authGroup := r.Group("/auth")
+	// {
+	// 	authGroup.POST("/login", authHandler.Login)
+	// }
 	return r
 }

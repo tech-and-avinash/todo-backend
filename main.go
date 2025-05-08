@@ -38,12 +38,15 @@ func AutoMigrate(db *gorm.DB) error {
 	for _, model := range []interface{}{
 		&models.User{},
 		&models.Note{},
+		&models.ChecklistItem{},
+		&models.Reminder{},
 	} {
+		log.Printf("Migrating: %T", model)
 		if err := db.Migrator().AutoMigrate(model); err != nil {
+			log.Printf("⚠️ Failed to migrate %T: %v", model, err)
 			return err
 		}
-
 	}
-
+	log.Println("✅ All migrations attempted.")
 	return nil
 }

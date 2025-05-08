@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"errors"
 	"log"
 	"net/http"
 	"time"
-
 	"todo-backend/models"
 	"todo-backend/repositories"
 
@@ -27,78 +25,176 @@ func NewNoteHandler(db *gorm.DB) *NoteHandler {
 }
 
 func (h *NoteHandler) CreateNote(c *gin.Context) {
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		log.Println("CreateNote: Missing Authorization header")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
-		return
-	}
-
-	userID, err := extractUserIDFromToken(c)
+	user, err := extractUserFromHeader(c)
 	if err != nil {
-		log.Printf("CreateNote: Failed to extract user ID - Error: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	var note models.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		log.Printf("CreateNote: Failed to bind JSON - Error: %v", err)
+	var req models.CreateNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid note input: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	note.CreatedBy = userID
-	note.UpdatedBy = userID
-	note.CreatedAt = time.Now()
-	note.UpdatedAt = time.Now()
+	noteID := uuid.New()
+	note := models.Note{
+		ID:          noteID,
+		Title:       req.Title,
+		Description: req.Description,
+		IsPinned:    req.IsPinned,
+		IsArchived:  req.IsArchived,
+		IsChecklist: req.IsChecklist,
+		CreatedBy:   user.ID,
+		UpdatedBy:   user.ID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
 
+	// Save note
 	if err := h.repo.Create(&note); err != nil {
-		log.Printf("CreateNote: Failed to create note - Error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create note"})
+		log.Printf("Failed to create note: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create note"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, note)
+	// Save checklist items
+	for _, item := range req.ChecklistItems {
+		itemID := uuid.New()
+		newItem := models.ChecklistItem{
+			ID:        itemID,
+			NoteID:    noteID,
+			Text:      item.Text,
+			IsChecked: item.IsChecked,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := h.repo.CreateChecklistItem(&newItem); err != nil {
+			log.Printf("Checklist create error: %v", err)
+		}
+	}
+
+	// Save reminders
+	for _, r := range req.Reminders {
+		reminder := models.Reminder{
+			ID:     uuid.New(),
+			NoteID: noteID,
+			Time:   r.Time, // this now works because r is time.Time
+		}
+		if err := h.repo.CreateReminder(&reminder); err != nil {
+			log.Printf("Reminder create error: %v", err)
+		}
+	}
+
+	// Fetch the checklist and reminders again to include in response
+	checklistModel, _ := h.repo.GetChecklistItemsByNoteID(noteID)
+	var checklist []models.ChecklistItemResponse
+	for _, item := range checklistModel {
+		checklist = append(checklist, models.ChecklistItemResponse{
+			ID:        item.ID,
+			Text:      item.Text,
+			IsChecked: item.IsChecked,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+
+	remindersModel, _ := h.repo.GetRemindersByNoteID(noteID)
+
+	var reminders []models.ReminderResponse
+	for _, r := range remindersModel {
+		reminders = append(reminders, models.ReminderResponse{
+			Time: r.Time,
+		})
+	}
+
+	// Build response
+	response := models.NoteResponse{
+		ID:             note.ID,
+		Title:          note.Title,
+		Description:    note.Description,
+		FirstName:      user.FirstName,
+		CreatedAt:      note.CreatedAt,
+		UpdatedAt:      note.UpdatedAt,
+		CreatedBy:      note.CreatedBy,
+		UpdatedBy:      note.UpdatedBy,
+		ChecklistItems: checklist,
+		Reminders:      reminders,
+	}
+	c.JSON(http.StatusCreated, response)
 }
 
 func (h *NoteHandler) GetAllNotes(c *gin.Context) {
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
-		return
-	}
-
-	userID, err := extractUserIDFromToken(c)
+	user, err := extractUserFromHeader(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	notes, err := h.repo.GetAllByUser(userID)
+	notes, err := h.repo.GetAllByUser(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch notes"})
+		log.Printf("Failed to fetch notes: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not fetch notes"})
 		return
 	}
 
-	c.JSON(http.StatusOK, notes)
+	var response []models.NoteResponse
+	for _, n := range notes {
+
+		items, _ := h.repo.GetChecklistItemsByNoteID(n.ID)
+		var checklist []models.ChecklistItemResponse
+		for _, item := range items {
+			checklist = append(checklist, models.ChecklistItemResponse{
+				ID:        item.ID,
+				Text:      item.Text,
+				IsChecked: item.IsChecked,
+				CreatedAt: item.CreatedAt,
+				UpdatedAt: item.UpdatedAt,
+			})
+		}
+
+		remindersModel, _ := h.repo.GetRemindersByNoteID(n.ID)
+		var reminders []models.ReminderResponse
+		for _, r := range remindersModel {
+			reminders = append(reminders, models.ReminderResponse{
+				Time: r.Time,
+			})
+		}
+
+		response = append(response, models.NoteResponse{
+			ID:             n.ID,
+			Title:          n.Title,
+			Description:    n.Description,
+			IsPinned:       n.IsPinned,
+			IsArchived:     n.IsArchived,
+			IsChecklist:    n.IsChecklist,
+			CreatedAt:      n.CreatedAt,
+			UpdatedAt:      n.UpdatedAt,
+			CreatedBy:      n.CreatedBy,
+			UpdatedBy:      n.UpdatedBy,
+			FirstName:      user.FirstName,
+			ChecklistItems: checklist,
+			Reminders:      reminders,
+		})
+	}
+
+	result := models.NoteListResponse{
+		Notes: response,
+		Total: len(response),
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *NoteHandler) GetNoteByID(c *gin.Context) {
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
-		return
-	}
-
-	userID, err := extractUserIDFromToken(c)
+	user, err := extractUserFromHeader(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	noteIDStr := c.Param("id")
-	noteID, err := uuid.Parse(noteIDStr)
+	noteID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
@@ -110,77 +206,132 @@ func (h *NoteHandler) GetNoteByID(c *gin.Context) {
 		return
 	}
 
-	if note.CreatedBy != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to access this note"})
+	if note.CreatedBy != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not allowed to access this note"})
 		return
 	}
 
-	c.JSON(http.StatusOK, note)
+	items, _ := h.repo.GetChecklistItemsByNoteID(noteID)
+	var checklist []models.ChecklistItemResponse
+	for _, item := range items {
+		checklist = append(checklist, models.ChecklistItemResponse{
+			ID:        item.ID,
+			Text:      item.Text,
+			IsChecked: item.IsChecked,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+
+	remindersModel, _ := h.repo.GetRemindersByNoteID(noteID)
+	var reminders []models.ReminderResponse
+	for _, r := range remindersModel {
+		reminders = append(reminders, models.ReminderResponse{
+			Time: r.Time,
+		})
+	}
+
+	response := models.NoteResponse{
+		ID:             note.ID,
+		Title:          note.Title,
+		Description:    note.Description,
+		IsPinned:       note.IsPinned,
+		IsArchived:     note.IsArchived,
+		IsChecklist:    note.IsChecklist,
+		CreatedAt:      note.CreatedAt,
+		UpdatedAt:      note.UpdatedAt,
+		CreatedBy:      note.CreatedBy,
+		UpdatedBy:      note.UpdatedBy,
+		FirstName:      user.FirstName,
+		ChecklistItems: checklist,
+		Reminders:      reminders,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *NoteHandler) UpdateNote(c *gin.Context) {
-	noteIDStr := c.Param("id")
-	noteID, err := uuid.Parse(noteIDStr)
+	user, err := extractUserFromHeader(c)
 	if err != nil {
-		log.Printf("UpdateNote: Failed to parse note ID - Error: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	noteID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
 
-	var note models.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		log.Printf("UpdateNote: Failed to bind JSON - Error: %v", err)
+	var req models.CreateNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, err := extractUserIDFromToken(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+	// Update note
+	note := models.Note{
+		ID:          noteID,
+		Title:       req.Title,
+		Description: req.Description,
+		IsPinned:    req.IsPinned,
+		IsArchived:  req.IsArchived,
+		IsChecklist: req.IsChecklist,
+		UpdatedBy:   user.ID,
+		UpdatedAt:   time.Now(),
+	}
+
+	if err := h.repo.Update(&note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update note"})
 		return
 	}
 
-	note.ID = noteID
-	note.UpdatedBy = userID
-	note.UpdatedAt = time.Now()
+	// Clear old checklist/reminders
+	h.repo.DeleteChecklistItemsByNote(noteID)
+	h.repo.DeleteRemindersByNote(noteID)
 
-	if err := h.repo.Update(&note); err != nil {
-		log.Printf("UpdateNote: Failed to update note - Error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	// Add updated checklist items
+	for _, item := range req.ChecklistItems {
+		newItem := models.ChecklistItem{
+			ID:        uuid.New(),
+			NoteID:    noteID,
+			Text:      item.Text,
+			IsChecked: item.IsChecked,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		h.repo.CreateChecklistItem(&newItem)
+	}
+
+	// Add updated reminders
+	for _, r := range req.Reminders {
+		reminder := models.Reminder{
+			ID:     uuid.New(),
+			NoteID: noteID,
+			Time:   r.Time,
+		}
+		h.repo.CreateReminder(&reminder)
 	}
 
 	c.JSON(http.StatusOK, note)
 }
 
 func (h *NoteHandler) DeleteNote(c *gin.Context) {
-	noteIDStr := c.Param("id")
-	noteID, err := uuid.Parse(noteIDStr)
+	noteID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		log.Printf("DeleteNote: Failed to parse note ID - Error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
 
+	// Delete related checklist and reminders first
+	h.repo.DeleteChecklistItemsByNote(noteID)
+	h.repo.DeleteRemindersByNote(noteID)
+
+	// Then delete the note
 	if err := h.repo.Delete(noteID); err != nil {
-		log.Printf("DeleteNote: Failed to delete note - Error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete note"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
-}
-
-func extractUserIDFromToken(c *gin.Context) (uuid.UUID, error) {
-	val, exists := c.Get("userID")
-	if !exists {
-		return uuid.Nil, errors.New("user ID not found in context")
-	}
-
-	userID, ok := val.(uuid.UUID)
-	if !ok {
-		return uuid.Nil, errors.New("invalid user ID type in context")
-	}
-
-	return userID, nil
 }
