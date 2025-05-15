@@ -6,9 +6,10 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
-	"todo-backend/api/routes"
-	"todo-backend/config"
-	"todo-backend/models"
+	"nomadule-backend/api/routes"
+	"nomadule-backend/azure"
+	"nomadule-backend/config"
+	"nomadule-backend/models"
 )
 
 func main() {
@@ -23,20 +24,22 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// if err := AutoMigrate(db); err != nil {
-	// 	log.Printf("⚠️ Migration warning: %v", err)
+	// ✅ Initialize Azure Storage Client
+	azureClient, err := azure.NewAzureStorageClient()
+	if err != nil {
+		log.Fatalf("Failed to initialize Azure client: %v", err)
+	}
+	// Run database migrations...
+	// err = Migrate(db)
+	// if err != nil {
+	// 	log.Fatalf("could not migrate database: %v", err)
+	// 	return
 	// }
 
-	// Run database migrations...
-	err = Migrate(db)
-	if err != nil {
-		log.Fatalf("could not migrate database: %v", err)
-		return
-	}
+	// ✅ Pass Azure client into route setup
+	r := routes.SetupRoutes(db, azureClient)
 
-	// Setup and run the server
-	r := routes.SetupRoutes(db)
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run("0.0.0.0:8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -44,7 +47,7 @@ func main() {
 //	func AutoMigrate(db *gorm.DB) error {
 //		modelsToMigrate := []interface{}{
 func Migrate(DB *gorm.DB) error {
-	err := DB.AutoMigrate(&models.User{}, &models.Note{}, &models.ChecklistItem{}, &models.Reminder{})
+	err := DB.AutoMigrate(&models.User{}, &models.Note{}, &models.ChecklistItem{}, &models.Reminder{}, &models.NoteAttachment{}, &models.Contact{})
 	if err != nil {
 		log.Fatalf("could not migrate database: %v", err)
 	}

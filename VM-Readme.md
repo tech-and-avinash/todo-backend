@@ -14,7 +14,27 @@ chmod +x todo-backend
 ```bash
 sudo nano /etc/nginx/sites-available/api.nomadule.com
 ```
-*(Create the appropriate server block for the backend)*
+*(
+
+    server {
+    listen 80;
+    server_name api.nomadule.com;
+
+    location / {
+        proxy_pass http://localhost:8080; # Your backend app port
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    access_log /var/log/nginx/api.nomadule.com.access.log;
+    error_log  /var/log/nginx/api.nomadule.com.error.log;
+}
+
+
+)*
 
 ### Step 2: Enable the Site
 ```bash
@@ -83,7 +103,7 @@ You can start your Go app (example command):
 
 ### Step 1: Create systemd service file
 ```bash
-sudo nano /etc/systemd/system/api-todo.service
+sudo nano /etc/systemd/system/api-nomadule.service
 ```
 
 Example service file:
@@ -93,11 +113,11 @@ Description=API Nomadule Service
 After=network.target
 
 [Service]
-ExecStart=/home/nomadule/app/todo/todo-backend
-WorkingDirectory=/home/nomadule/app/todo
+ExecStart=/home/azureuser/app/nomadule/nomadule-backend
+WorkingDirectory=/home/azureuser/app/nomadule
 Restart=always
-User=nomadule
-EnvironmentFile=/home/nomadule/app/todo/.env
+User=azureuser
+EnvironmentFile=/home/azureuser/app/nomadule/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -137,6 +157,6 @@ sudo systemctl reload nginx
 Now your API and frontend are served with HTTPS, and the API runs as a service.
 
 journalctl -u api-nomadule.service -n 50 --no-pager
-chmod +x /home/nomadule/app/todo/todo-backend
+chmod +x /home/azureuser/app/nomadule/nomadule-backend
 nomadule@vm-nomadule:/$ sudo systemctl restart api-nomadule.service
 nomadule@vm-nomadule:/$ sudo systemctl status api-nomadule.service

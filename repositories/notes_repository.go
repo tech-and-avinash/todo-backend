@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"fmt"
-	"todo-backend/models"
+	"nomadule-backend/models"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -56,6 +56,20 @@ func (r *NoteRepository) GetAll() ([]models.Note, error) {
 	var notes []models.Note
 	err := r.db.Find(&notes).Error
 	return notes, err
+}
+
+func (r *NoteRepository) CreateAttachment(a *models.NoteAttachment) error {
+	return r.db.Create(a).Error
+}
+
+func (r *NoteRepository) GetAttachmentsByNoteID(noteID uuid.UUID) ([]models.NoteAttachment, error) {
+	var attachments []models.NoteAttachment
+	err := r.db.Where("note_id = ?", noteID).Find(&attachments).Error
+	return attachments, err
+}
+
+func (r *NoteRepository) DeleteAttachmentsByNoteID(noteID uuid.UUID) error {
+	return r.db.Where("note_id = ?", noteID).Delete(&models.NoteAttachment{}).Error
 }
 
 // CreateChecklistItem saves a checklist item linked to a note

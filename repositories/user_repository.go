@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"todo-backend/models"
+	"nomadule-backend/models"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -68,4 +68,8 @@ func (r *UserRepository) List() ([]models.User, error) {
 	var users []models.User
 	err := r.db.Find(&users).Error
 	return users, err
+}
+
+func (r *UserRepository) UpdateImageURL(id uuid.UUID, imageURL string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", id).Update("image_url", imageURL).Error
 }

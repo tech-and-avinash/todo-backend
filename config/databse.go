@@ -1,17 +1,23 @@
-// config/database.go
 package config
 
 import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+var dbInstance *gorm.DB
+
 func InitDB() (*gorm.DB, error) {
+	if dbInstance != nil {
+		return dbInstance, nil
+	}
+
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
@@ -25,36 +31,39 @@ func InitDB() (*gorm.DB, error) {
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	// Log environment variables for debugging
 	log.Printf("DB Connection Details:")
 	log.Printf("Host: %s", host)
 	log.Printf("Port: %s", port)
 	log.Printf("User: %s", user)
 	log.Printf("Database: %s", dbname)
 
-	// Validate required environment variables
-	if host == "" {
-		return nil, fmt.Errorf("DB_HOST is not set")
-	}
-	if port == "" {
-		return nil, fmt.Errorf("DB_PORT is not set")
-	}
-	if user == "" {
-		return nil, fmt.Errorf("DB_USER is not set")
-	}
-	if dbname == "" {
-		return nil, fmt.Errorf("DB_NAME is not set")
+	if host == "" || port == "" || user == "" || dbname == "" {
+		return nil, fmt.Errorf("missing required database environment variables")
 	}
 
-	// Connection string
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	// ✅ Disable statement caching at driver level using preferSimpleProtocol
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable application_name=nomadule_app preferSimpleProtocol=true",
 		host, port, user, password, dbname)
 
-	// Open connection
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// ✅ Disable GORM-level prepared statements
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{
+		PrepareStmt: false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v\nConnection string: %s", err, dsn)
 	}
 
-	return db, nil
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get *sql.DB from GORM: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	dbInstance = db
+	return dbInstance, nil
 }

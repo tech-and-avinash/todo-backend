@@ -15,32 +15,59 @@ type CreateUserRequest struct {
 	Password  string `json:"password"`
 }
 
-// request model
-type CreateNoteRequest struct {
-	Title          string            `json:"title" binding:"required"`
-	Description    string            `json:"description"`
-	IsPinned       bool              `json:"isPinned"`
-	IsArchived     bool              `json:"isArchived"`
-	IsChecklist    bool              `json:"isChecklist"`
-	ChecklistItems []ChecklistItem   `json:"checklistItems"`
-	Reminders      []ReminderRequest `json:"reminders"`
+type UpdateUserRequest struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	ImageURL  string `json:"imageUrl"`
 }
 
-// response model
+type CreateNoteRequest struct {
+	Title          string                 `json:"title" binding:"required"`
+	Description    string                 `json:"description"`
+	IsPinned       bool                   `json:"isPinned"`
+	IsArchived     bool                   `json:"isArchived"`
+	IsChecklist    bool                   `json:"isChecklist"`
+	Attachments    []NoteAttachmentInput  `json:"attachments"`
+	ChecklistItems []ChecklistItemRequest `json:"checklistItems"`
+	Reminders      []ReminderRequest      `json:"reminders"`
+}
+
+type ChecklistItemRequest struct {
+	Text      string `json:"text" binding:"required"`
+	IsChecked bool   `json:"isChecked"`
+}
+
+type ReminderRequest struct {
+	Time time.Time `json:"time"`
+}
+type NoteAttachmentInput struct {
+	FileName    string `json:"fileName"`
+	URL         string `json:"url"`
+	ContentType string `json:"contentType"`
+}
+
 type NoteResponse struct {
-	ID             uuid.UUID               `json:"id"`
-	Title          string                  `json:"title"`
-	Description    string                  `json:"description"`
-	FirstName      *string                 `json:"user_firstname"`
-	IsPinned       bool                    `json:"isPinned"`
-	IsArchived     bool                    `json:"isArchived"`
-	IsChecklist    bool                    `json:"isChecklist"`
-	CreatedAt      time.Time               `json:"created_at"`
-	UpdatedAt      time.Time               `json:"updated_at"`
-	CreatedBy      string                  `json:"created_by"`
-	UpdatedBy      string                  `json:"updated_by"`
-	ChecklistItems []ChecklistItemResponse `json:"checklist_items,omitempty"`
-	Reminders      []ReminderResponse      `json:"reminders,omitempty"`
+	ID             uuid.UUID                `json:"id"`
+	Title          string                   `json:"title"`
+	Description    string                   `json:"description"`
+	FirstName      *string                  `json:"user_firstname"`
+	IsPinned       bool                     `json:"isPinned"`
+	IsArchived     bool                     `json:"isArchived"`
+	IsChecklist    bool                     `json:"isChecklist"`
+	Attachments    []NoteAttachmentResponse `json:"attachments,omitempty"`
+	ChecklistItems []ChecklistItemResponse  `json:"checklist_items,omitempty"`
+	Reminders      []ReminderResponse       `json:"reminders,omitempty"`
+	CreatedAt      time.Time                `json:"created_at"`
+	UpdatedAt      time.Time                `json:"updated_at"`
+	CreatedBy      string                   `json:"created_by"`
+	UpdatedBy      string                   `json:"updated_by"`
+}
+
+type NoteAttachmentResponse struct {
+	FileName    string `json:"file_name"`
+	URL         string `json:"url"`
+	ContentType string `json:"content_type"`
 }
 
 type NoteListResponse struct {
@@ -55,12 +82,44 @@ type ChecklistItemResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type ReminderRequest struct {
+type ReminderResponse struct {
 	Time time.Time `json:"time"`
 }
 
-type ReminderResponse struct {
-	Time time.Time `json:"time"`
+type CreateContactRequest struct {
+	FirstName string `json:"firstName" binding:"required"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email" binding:"required,email"`
+	Phone     string `json:"phone"`
+	Address   string `json:"address"`
+}
+
+type CreateContactResponse struct {
+	ID        uuid.UUID `json:"id"`
+	FirstName string    `json:"firstName"`
+	LastName  string    `json:"lastName"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type UpdateContactRequest struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Address   string `json:"address"`
+}
+type UpdateContactResponse struct {
+	ID        uuid.UUID `json:"id"`
+	FirstName string    `json:"firstName"`
+	LastName  string    `json:"lastName"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Address   string    `json:"address"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type LoginRequest struct {

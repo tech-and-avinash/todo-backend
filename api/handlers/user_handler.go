@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
-	"todo-backend/models"
-	"todo-backend/repositories"
+	"nomadule-backend/azure"
+	"nomadule-backend/models"
+	"nomadule-backend/repositories"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,12 +19,14 @@ import (
 )
 
 type UserHandler struct {
-	repo *repositories.UserRepository
+	repo        *repositories.UserRepository
+	azureClient *azure.AzureStorageClient
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
+func NewUserHandler(db *gorm.DB, azureClient *azure.AzureStorageClient) *UserHandler {
 	return &UserHandler{
-		repo: repositories.NewUserRepository(db),
+		repo:        repositories.NewUserRepository(db),
+		azureClient: azureClient,
 	}
 }
 
@@ -31,6 +37,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("Incoming request: %+v", req)
 
 	if req.ClerkID == "" && req.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required for manual sign-up"})
@@ -45,6 +52,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 	if existingUser != nil {
+		log.Println("User already exists:", existingUser)
 		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
 		return
 	}
@@ -69,13 +77,15 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		ImageURL:  req.ImageUrl,
 		Password:  hashedPassword,
 	}
+	log.Printf("Creating user object: %+v", user)
 
 	if err := h.repo.Create(user); err != nil {
 		log.Println("Database create error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user in database"})
 		return
 	}
 
+	log.Println("User created successfully with ID:", user.ID)
 	c.JSON(http.StatusCreated, gin.H{"id": user.ID})
 }
 
@@ -104,15 +114,27 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req models.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user.ID = id
-	if err := h.repo.Update(&user); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	user, err := h.repo.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Update only allowed fields
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.Email = req.Email
+	user.ImageURL = req.ImageURL
+	user.UpdatedAt = time.Now()
+
+	if err := h.repo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
 
@@ -143,4 +165,42 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, users)
+}
+
+func (h *UserHandler) UploadProfileImage(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File required"})
+		return
+	}
+	defer file.Close()
+
+	// Upload to Azure
+	err = h.azureClient.UploadFile(id.String(), header.Filename, file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Upload failed"})
+		return
+	}
+
+	blobPath := fmt.Sprintf("user-%s/%s", id.String(), header.Filename)
+	imageURL := fmt.Sprintf("https://%s.blob.core.windows.net/user-files/%s",
+		os.Getenv("AZURE_STORAGE_ACCOUNT"),
+		blobPath,
+	)
+
+	// Update ImageURL in DB
+	err = h.repo.UpdateImageURL(id, imageURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update image URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile image uploaded", "image_url": imageURL})
 }

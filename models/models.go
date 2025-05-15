@@ -19,18 +19,28 @@ type User struct {
 }
 
 type Note struct {
-	ID             uuid.UUID       `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	Title          string          `gorm:"size:255" json:"title"`
-	Description    string          `gorm:"type:text" json:"description"`
-	IsPinned       bool            `json:"isPinned"`
-	IsArchived     bool            `json:"isArchived"`
-	IsChecklist    bool            `json:"isChecklist"`
-	ChecklistItems []ChecklistItem `gorm:"foreignKey:NoteID" json:"checklistItems"`
-	Reminders      []Reminder      `gorm:"foreignKey:NoteID" json:"reminders"`
-	CreatedBy      string          `gorm:"not null" json:"created_by"`
-	CreatedAt      time.Time       `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedBy      string          `gorm:"not null" json:"updated_by"`
-	UpdatedAt      time.Time       `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID             uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	Title          string           `gorm:"size:255" json:"title"`
+	Description    string           `gorm:"type:text" json:"description"`
+	IsPinned       bool             `json:"isPinned"`
+	IsArchived     bool             `json:"isArchived"`
+	IsChecklist    bool             `json:"isChecklist"`
+	Attachments    []NoteAttachment `gorm:"foreignKey:NoteID"`
+	ChecklistItems []ChecklistItem  `gorm:"foreignKey:NoteID" json:"checklistItems"`
+	Reminders      []Reminder       `gorm:"foreignKey:NoteID" json:"reminders"`
+	CreatedBy      string           `gorm:"not null" json:"created_by"`
+	CreatedAt      time.Time        `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedBy      string           `gorm:"not null" json:"updated_by"`
+	UpdatedAt      time.Time        `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type NoteAttachment struct {
+	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	NoteID      uuid.UUID `gorm:"type:uuid;index"`
+	FileName    string
+	URL         string
+	ContentType string
+	CreatedAt   time.Time
 }
 
 type ChecklistItem struct {
@@ -48,4 +58,17 @@ type Reminder struct {
 	NoteID uuid.UUID `gorm:"type:uuid;not null;index"`
 	Note   Note      `gorm:"foreignKey:NoteID;references:ID"`
 	Time   time.Time `json:"time"`
+}
+
+type Contact struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	FirstName string    `json:"firstName"`
+	LastName  string    `json:"lastName"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Address   string    `json:"address"`
+	CreatedBy string    `gorm:"not null" json:"created_by"`
+	CreatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedBy string    `gorm:"not null" json:"updated_by"`
+	UpdatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
